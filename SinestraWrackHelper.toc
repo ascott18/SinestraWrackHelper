@@ -1,0 +1,36 @@
+﻿## Interface: 40100
+## Title: Sinestra Wrack Helper
+
+## Version: 0.9
+## Author: Cybeloras of Mal'Ganis
+## Notes: Helps you keep track of when wrack needs to be dispelled off of raid members in the Sinestra Encounter.
+## OptionalDeps: Ace3, LibStub
+## SavedVariables: SinestraWrackHelperDB
+# X-Embeds: 
+## X-Category: Combat
+
+
+# Lib\LibStub\LibStub.lua
+# Lib\CallbackHandler-1.0\CallbackHandler-1.0.xml
+# Lib\AceAddon-3.0\AceAddon-3.0.xml
+# Lib\AceConsole-3.0\AceConsole-3.0.xml
+# Lib\AceEvent-3.0\AceEvent-3.0.xml
+# Lib\AceTimer-3.0\AceTimer-3.0.xml
+# Lib\AceLocale-3.0\AceLocale-3.0.xml
+# Lib\AceDB-3.0\AceDB-3.0.xml
+# Lib\AceComm-3.0\AceComm-3.0.xml
+# Lib\LibSharedMedia-3.0\lib.xml
+# Lib\libdatabroker-1-1\LibDataBroker-1.1.lua
+
+Localization\enUS.lua
+Localization\deDE.lua
+Localization\esES.lua
+Localization\esMX.lua
+Localization\frFR.lua
+Localization\koKR.lua
+Localization\ruRU.lua
+Localization\zhCN.lua
+Localization\zhTW.lua
+
+SinestraWrackHelper.lua
+SinestraWrackHelper.xml
