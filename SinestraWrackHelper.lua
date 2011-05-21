@@ -9,7 +9,7 @@ local sort, ipairs, CreateFrame, UnitClass, pairs, ceil, UnitDebuff, UnitBuff, f
 	  sort, ipairs, CreateFrame, UnitClass, pairs, ceil, UnitDebuff, UnitBuff, format, GetSpellTexture, GetRealZoneText
 local debug
 --@debug@
- = true
+ = true 
 --@end-debug@
 
 local GetTime = GetTime
