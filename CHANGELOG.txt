@@ -1,2 +1,5 @@
-﻿===v0.9===
- * Initial Release
+﻿===v1.0===
+ * Initial public release (STILL UNTESTED IN A RAID SETTING)
+ 
+===v0.9===
+ * Initial alpha release
