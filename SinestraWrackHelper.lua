@@ -5,18 +5,19 @@ local LSM = LibStub("LibSharedMedia-3.0")
 local LBZ = LibStub("LibBabble-Zone-3.0", true)
 local BZ = LBZ and LBZ:GetLookupTable() or setmetatable({}, {__index = function(t,k) return k end})
 
-local sort, ipairs, CreateFrame, UnitClass, pairs, ceil, UnitDebuff, UnitBuff, format, GetSpellTexture, GetRealZoneText = 
-	  sort, ipairs, CreateFrame, UnitClass, pairs, ceil, UnitDebuff, UnitBuff, format, GetSpellTexture, GetRealZoneText
-local debug
+local sort, ipairs, pairs, rawget, ceil, format, max, random, UnitClass, UnitName, UnitDebuff, UnitBuff, GetSpellTexture, GetRealZoneText, UnitPlayerOrPetInRaid, CreateFrame = 
+	  sort, ipairs, pairs, rawget, ceil, format, max, random, UnitClass, UnitName, UnitDebuff, UnitBuff, GetSpellTexture, GetRealZoneText, UnitPlayerOrPetInRaid, CreateFrame
+	  
+local debug = SWH_DEBUG
 --@debug@
- = true 
+ _G.SWH = SWH
 --@end-debug@
 
 local GetTime = GetTime
 local db, st, co
 local clientVersion = select(4, GetBuildInfo())
 
-SWH.Defaults = {
+local Defaults = {
 	profile = {
 		Locked		=	true,
 		barx		=	160,
@@ -72,6 +73,240 @@ local fontsettingorders = {
 	Damage = 12,
 }
 
+local barContainer = CreateFrame("Frame", "SWH_Container", UIParent)
+barContainer:SetMovable(1)
+barContainer.text = barContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+barContainer.text:SetText(L["Click and drag bars to reposition. '/swh options' to display the options. '/swh' to leave config mode."])
+local backdrop = {
+	bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark"
+}
+local wrack = {
+    [89421] = 1,
+	[89435] = 1,
+	[92955] = 1,
+	[92956] = 1,
+}
+local reductions = {
+    [642] = 1, -- pally bubble
+    [45438] = 1, -- ice block
+    [47585] = 1, -- disperse
+    [48707] = 1, -- AMS
+    [50461] = 1, -- AMZ
+    [47788] = 1, -- guardian spirit
+    [33206] = 1, -- pain supp
+}
+for k, v in pairs(reductions) do
+	reductions[k] = GetSpellInfo(k)
+end
+local orderedBars = {}
+local function sortbars(a, b)
+	if a.start and b.start then
+		return a.start < b.start
+	else
+		return a.start
+	end
+end
+local function SetupBar(bar)
+	bar:SetSize(db.profile.barx, db.profile.bary)
+	bar.tex:SetTexture(LSM:Fetch("statusbar", db.profile.barTexture))
+	bar:SetMinMaxValues(0, db.profile.barMax)
+	if not db.profile.Locked then
+		local pct = bar:GetValue() / db.profile.barMax
+		local inv = 1 - pct
+		bar:SetStatusBarColor(
+			(co.r*pct) + (st.r * inv),
+			(co.g*pct) + (st.g * inv),
+			(co.b*pct) + (st.b * inv),
+			1)
+	end
+	
+	if db.profile.icenabled then
+		local s = db.profile.icscale*db.profile.bary
+		bar.ic:SetSize(s, s)
+		bar.ic:ClearAllPoints()
+		if db.profile.icside == -1 then
+			bar.ic:SetPoint("RIGHT", bar, "LEFT", db.profile.icx, db.profile.icy)
+		else
+			bar.ic:SetPoint("LEFT", bar, "RIGHT", db.profile.icx, db.profile.icy)
+		end
+		if bar.isTest then
+			bar.ic:Show()
+			bar.cd:Show()
+		end
+	else
+		bar.ic:Hide()
+		bar.cd:Hide()
+	end
+	
+	local f = db.profile.Fonts.Name
+	bar.namet:SetPoint("LEFT", bar, f.x, f.y)
+	bar.namet:SetFont(LSM:Fetch("font", f.Name), f.Size, f.Outline)
+	if f.Enabled then
+		bar.namet:Show()
+	else
+		bar.namet:Hide()
+	end
+	
+	f = db.profile.Fonts.Damage
+	bar.dmgt:SetPoint("RIGHT", bar, f.x, f.y)
+	bar.dmgt:SetFont(LSM:Fetch("font", f.Name), f.Size, f.Outline)
+	bar.dmgt:SetVertexColor(f.Color.r, f.Color.g, f.Color.b)
+	if f.Enabled then
+		bar.dmgt:Show()
+	else
+		bar.dmgt:Hide()
+	end
+	
+	f = db.profile.Fonts.Time
+	bar.timet:SetPoint("RIGHT", bar, f.x, f.y)
+	bar.timet:SetFont(LSM:Fetch("font", f.Name), f.Size, f.Outline)
+	bar.timet:SetVertexColor(f.Color.r, f.Color.g, f.Color.b)
+	if f.Enabled then
+		bar.timet:Show()
+	else
+		bar.timet:Hide()
+	end
+end
+local function StartMoving()
+	if not db.profile.Locked then
+		barContainer:StartMoving()
+	end
+end
+local function StopMoving()
+	if not db.profile.Locked then
+		barContainer:StopMovingOrSizing()
+		local p = db.profile.point
+		p.point, _, p.relpoint, p.x, p.y = barContainer:GetPoint()
+	end
+end
+local bars = setmetatable({}, {__index = function(tbl, k)
+	if not k then return end
+	local bar = CreateFrame("StatusBar", "SWH_Bar_"..k, barContainer)
+	bar:SetScript("OnDragStart", StartMoving)
+	bar:SetScript("OnDragStop", StopMoving)
+	bar:SetScript("OnMouseUp", StopMoving)
+	bar.Setup = SetupBar
+	bar:SetBackdrop(backdrop)
+	bar:RegisterForDrag("LeftButton")
+	
+	bar.tex = bar:CreateTexture()
+	bar:SetStatusBarTexture(bar.tex)
+	
+	local namet = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	bar.namet = namet
+	namet:SetText(k)
+	local _, class = UnitClass(k)
+	if class then
+		local c = RAID_CLASS_COLORS[class]
+		if c then
+			namet:SetVertexColor(c.r, c.g, c.b, 1)
+		end
+	end
+	bar.ic = bar:CreateTexture()
+	bar.ic:SetTexCoord(.07, .93, .07, .93)
+	bar.cd = CreateFrame("Cooldown", nil, bar)
+	bar.cd:SetAllPoints(bar.ic)
+	
+	bar.dmgt = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	bar.timet = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	bar:Setup()
+	
+	orderedBars[#orderedBars + 1] = bar
+	sort(orderedBars, sortbars)
+	tbl[k] = bar
+	return bar
+end})
+--@debug@
+ _G.SWH_bars = bars
+--@end-debug@
+
+local function Reposition()
+	sort(orderedBars, sortbars)
+	local y = 0
+	for i, bar in ipairs(orderedBars) do
+		if bar.active then
+			bar:SetPoint("TOPLEFT", barContainer, "TOPLEFT", 0, y*(db.profile.bary+db.profile.barspace)*db.profile.bardir)
+			bar:Show()
+			y = y + 1
+		else
+			bar:Hide()
+		end
+		if db.profile.Locked then
+			bar:EnableMouse(0)
+		else
+			bar:EnableMouse(1)
+		end
+	end
+end
+
+function SWH:Update()
+	st, co = db.profile.st, db.profile.co
+	SWH:ZONE_CHANGED_NEW_AREA()
+	local p = db.profile.point
+	barContainer:ClearAllPoints()
+	barContainer:SetPoint(p.point, UIParent, p.relpoint, p.x, p.y)
+	barContainer:SetSize(db.profile.barx, db.profile.bary)
+	barContainer:Show()
+	
+	barContainer.text:SetWidth(max(db.profile.barx, 150))
+	barContainer.text:ClearAllPoints()
+	if db.profile.bardir == 1 then
+		barContainer.text:SetPoint("TOP", barContainer, "BOTTOM")
+	else
+		barContainer.text:SetPoint("BOTTOM", barContainer, "TOP")
+	end
+	if db.profile.Locked then
+		barContainer.text:Hide()
+	else
+		barContainer.text:Show()
+	end
+	for name, bar in pairs(bars) do
+		bar:Setup()
+	end
+	Reposition()
+end
+
+local function ToggleLock()
+	db.profile.Locked = not db.profile.Locked
+	if db.profile.Locked then
+		for name, bar in pairs(bars) do
+			if bar.isTest then
+				bar:Hide()
+				bar.isTest = nil
+				bar.active = nil
+			end
+		end
+		SWH:Update()
+	else
+		barContainer:SetScript("OnUpdate", nil)
+		local bar = bars[UnitName("player")]
+		for _, name in pairs({
+			UnitName("player"),
+			(UnitName("raid1") or "raid1"),
+			(UnitName("raid2") or "raid2"),
+		}) do
+			local bar = bars[name]
+			bar.ic:SetTexture(GetSpellTexture(642))
+			local t = random(25)
+			bar.timet:SetText(t)
+			bar:SetValue(t)
+			local pct = t / db.profile.barMax
+			local inv = 1-pct
+			bar:SetStatusBarColor(
+				(co.r*pct) + (st.r * inv),
+				(co.g*pct) + (st.g * inv),
+				(co.b*pct) + (st.b * inv),
+				1)
+			bar.active = 1
+			bar.isTest = 1
+			bar.dmgt:SetText(format("%.1f", (random(60000)/1000)) .. "k")
+			bar:Show()
+		end
+		Reposition()
+		barContainer.text:Show()
+	end
+end
+
 local fontTemplate = {
 	type = "group",
 	name = function(info)
@@ -115,8 +350,8 @@ local fontTemplate = {
 			type = "range",
 			width = "full",
 			order = 12,
-			min = 6,
-			max = 26,
+			softMin = 6,
+			softMax = 26,
 			step = 1,
 			bigStep = 1,
 		},
@@ -125,8 +360,8 @@ local fontTemplate = {
 			type = "range",
 			width = "full",
 			order = 21,
-			min = -100,
-			max = 100,
+			softMin = -100,
+			softMax = 100,
 			step = 1,
 			bigStep = 1,
 		},
@@ -135,8 +370,8 @@ local fontTemplate = {
 			width = "full",
 			type = "range",
 			order = 22,
-			min = -40,
-			max = 40,
+			softMin = -40,
+			softMax = 40,
 			step = 1,
 			bigStep = 1,
 		},
@@ -163,7 +398,7 @@ local fontTemplate = {
 }
 
 
-SWH.OptionsTable = {
+local OptionsTable = {
 	type = "group",
 	set = function(info, val)
 		db.profile[info[#info]] = val
@@ -182,8 +417,8 @@ SWH.OptionsTable = {
 					type = "toggle",
 					order = 1,
 					set = function(info, val)
-						db.profile.Locked = not val -- intended since the value is switching in SWH:ToggleLock()
-						SWH:ToggleLock()
+						db.profile.Locked = not val -- intended since the value is switching in ToggleLock()
+						ToggleLock()
 					end,
 				},
 				barx = {
@@ -191,8 +426,8 @@ SWH.OptionsTable = {
 					type = "range",
 					order = 2,
 					width = "full",
-					min = 10,
-					max = 500,
+					softMin = 10,
+					softMax = 500,
 					step = 1,
 					bigStep = 1,
 				},
@@ -201,8 +436,8 @@ SWH.OptionsTable = {
 					type = "range",
 					order = 3,
 					width = "full",
-					min = 10,
-					max = 50,
+					softMin = 10,
+					softMax = 50,
 					step = 0.1,
 					bigStep = 0.1,
 				},
@@ -213,7 +448,7 @@ SWH.OptionsTable = {
 					order = 4,
 					width = "full",
 					min = 0,
-					max = 20,
+					softMax = 20,
 					step = 0.1,
 					bigStep = 0.1,
 				},
@@ -235,7 +470,7 @@ SWH.OptionsTable = {
 					order = 7,
 					width = "full",
 					min = 1,
-					max = 60,
+					softMax = 60,
 					step = 1,
 					bigStep = 1,
 				},
@@ -307,8 +542,9 @@ SWH.OptionsTable = {
 					type = "range",
 					order = 7,
 					width = "full",
-					min = 0.5,
-					max = 2,
+					min = 0.1,
+					softMin = 0.5,
+					softMax = 2,
 					step = 0.01,
 					bigStep = 0.01,
 				},
@@ -317,8 +553,8 @@ SWH.OptionsTable = {
 					type = "range",
 					width = "full",
 					order = 21,
-					min = -20,
-					max = 20,
+					softMin = -20,
+					softMax = 20,
 					step = 1,
 					bigStep = 1,
 				},
@@ -327,8 +563,8 @@ SWH.OptionsTable = {
 					width = "full",
 					type = "range",
 					order = 22,
-					min = -20,
-					max = 20,
+					softMin = -20,
+					softMax = 20,
 					step = 1,
 					bigStep = 1,
 				},
@@ -343,172 +579,6 @@ SWH.OptionsTable = {
 
 
 
-local wrack = {
-    [89421] = 1,
-	[89435] = 1,
-	[92955] = 1,
-	[92956] = 1,
-}
-local reductions = {
-    [642] = 1, -- pally bubble
-    [45438] = 1, -- ice block
-    [47585] = 1, -- disperse
-    [48707] = 1, -- AMS
-    [50461] = 1, -- AMZ
-    [47788] = 1, -- guardian spirit
-    [33206] = 1, -- pain supp
-}
-for k, v in pairs(reductions) do
-	reductions[k] = GetSpellInfo(k)
-end
-local orderedBars = {}
-local function sortbars(a, b)
-	if a.start and b.start then
-		return a.start < b.start
-	else
-		return a.start
-	end
-end
-local barContainer = CreateFrame("Frame", "SWH_Container", UIParent)
-barContainer:SetMovable(1)
-barContainer.text = barContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-barContainer.text:SetText(L["Click and drag bars to reposition. '/swh options' to display the options. '/swh' to leave config mode."])
-local backdrop = {
-	bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark"
-}
-
-
-function SWH:Reposition()
-	sort(orderedBars, sortbars)
-	local y = 0
-	for i, bar in ipairs(orderedBars) do
-		if bar.active then
-			bar:SetPoint("TOPLEFT", barContainer, "TOPLEFT", 0, y*(db.profile.bary+db.profile.barspace)*db.profile.bardir)
-			bar:Show()
-			y = y + 1
-		else
-			bar:Hide()
-		end
-		if db.profile.Locked then
-			bar:EnableMouse(0)
-		else
-			bar:EnableMouse(1)
-		end
-	end
-end
-
-
-local function SetupBar(bar)
-	bar:SetSize(db.profile.barx, db.profile.bary)
-	bar.tex:SetTexture(LSM:Fetch("statusbar", db.profile.barTexture))
-	bar:SetMinMaxValues(0, db.profile.barMax)
-	if not db.profile.Locked then
-		local pct = bar:GetValue() / db.profile.barMax
-		local inv = 1 - pct
-		bar:SetStatusBarColor(
-			(co.r*pct) + (st.r * inv),
-			(co.g*pct) + (st.g * inv),
-			(co.b*pct) + (st.b * inv),
-			1)
-	end
-	
-	if db.profile.icenabled then
-		local s = db.profile.icscale*db.profile.bary
-		bar.ic:SetSize(s, s)
-		bar.ic:ClearAllPoints()
-		if db.profile.icside == -1 then
-			bar.ic:SetPoint("RIGHT", bar, "LEFT", db.profile.icx, db.profile.icy)
-		else
-			bar.ic:SetPoint("LEFT", bar, "RIGHT", db.profile.icx, db.profile.icy)
-		end
-		if bar.isTest then
-			bar.ic:Show()
-			bar.cd:Show()
-		end
-	else
-		bar.ic:Hide()
-		bar.cd:Hide()
-	end
-	
-	local f = db.profile.Fonts.Name
-	bar.namet:SetPoint("LEFT", bar, f.x, f.y)
-	bar.namet:SetFont(LSM:Fetch("font", f.Name), f.Size, f.Outline)
-	if f.Enabled then
-		bar.namet:Show()
-	else
-		bar.namet:Hide()
-	end
-	
-	f = db.profile.Fonts.Damage
-	bar.dmgt:SetPoint("RIGHT", bar, f.x, f.y)
-	bar.dmgt:SetFont(LSM:Fetch("font", f.Name), f.Size, f.Outline)
-	bar.dmgt:SetVertexColor(f.Color.r, f.Color.g, f.Color.b)
-	if f.Enabled then
-		bar.dmgt:Show()
-	else
-		bar.dmgt:Hide()
-	end
-	
-	f = db.profile.Fonts.Time
-	bar.timet:SetPoint("RIGHT", bar, f.x, f.y)
-	bar.timet:SetFont(LSM:Fetch("font", f.Name), f.Size, f.Outline)
-	bar.timet:SetVertexColor(f.Color.r, f.Color.g, f.Color.b)
-	if f.Enabled then
-		bar.timet:Show()
-	else
-		bar.timet:Hide()
-	end
-end
-
-local function StartMoving()
-	if not db.profile.Locked then
-		barContainer:StartMoving()
-	end
-end
-local function StopMoving()
-	if not db.profile.Locked then
-		barContainer:StopMovingOrSizing()
-		local p = db.profile.point
-		p.point, _, p.relpoint, p.x, p.y = barContainer:GetPoint()
-	end
-end
-local bars = setmetatable({}, {__index = function(tbl, k)
-	if not k then return end
-	local bar = CreateFrame("StatusBar", "SWH_Bar_"..k, barContainer)
-	bar:SetScript("OnDragStart", StartMoving)
-	bar:SetScript("OnDragStop", StopMoving)
-	bar:SetScript("OnMouseUp", StopMoving)
-	bar.Setup = SetupBar
-	bar:SetBackdrop(backdrop)
-	bar:RegisterForDrag("LeftButton")
-	
-	bar.tex = bar:CreateTexture()
-	bar:SetStatusBarTexture(bar.tex)
-	
-	local namet = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	bar.namet = namet
-	namet:SetText(k)
-	local _, class = UnitClass(k)
-	if class then
-		local c = RAID_CLASS_COLORS[class]
-		if c then
-			namet:SetVertexColor(c.r, c.g, c.b, 1)
-		end
-	end
-	bar.ic = bar:CreateTexture()
-	bar.ic:SetTexCoord(.07, .93, .07, .93)
-	bar.cd = CreateFrame("Cooldown", nil, bar)
-	bar.cd:SetAllPoints(bar.ic)
-	
-	bar.dmgt = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	bar.timet = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	bar:Setup()
-	
-	orderedBars[#orderedBars + 1] = bar
-	sort(orderedBars, sortbars)
-	tbl[k] = bar
-	return bar
-end})
 
 function barContainer:OnUpdate(elapsed)
 	local time = GetTime()
@@ -532,7 +602,7 @@ function barContainer:OnUpdate(elapsed)
 end
 
 function SWH:OnInitialize()
-	SWH.db = LibStub("AceDB-3.0"):New("SinestraWrackHelperDB", SWH.Defaults)
+	SWH.db = LibStub("AceDB-3.0"):New("SinestraWrackHelperDB", Defaults)
 	db = SWH.db
 	db.RegisterCallback(SWH, "OnProfileChanged", "Update")
 	db.RegisterCallback(SWH, "OnProfileCopied", "Update")
@@ -540,9 +610,9 @@ function SWH:OnInitialize()
 	db.RegisterCallback(SWH, "OnNewProfile", "Update")
 	db.profile.Locked = true
 	
-	SWH.OptionsTable.args.profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(db)
+	OptionsTable.args.profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(db)
 	
-	LibStub("AceConfig-3.0"):RegisterOptionsTable("Sinestra Wrack Helper Options", SWH.OptionsTable)
+	LibStub("AceConfig-3.0"):RegisterOptionsTable("Sinestra Wrack Helper Options", OptionsTable)
 	LibStub("AceConfigDialog-3.0"):SetDefaultSize("Sinestra Wrack Helper Options", 610, 500)
 	if not SWH.AddedToBlizz then
 		SWH.AddedToBlizz = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("Sinestra Wrack Helper Options", "Sinestra W.H.")
@@ -555,73 +625,6 @@ function SWH:OnInitialize()
 	SWH:Update()
 end
 
-function SWH:Update()
-	st, co = db.profile.st, db.profile.co
-	SWH:ZONE_CHANGED_NEW_AREA()
-	local p = db.profile.point
-	barContainer:ClearAllPoints()
-	barContainer:SetPoint(p.point, UIParent, p.relpoint, p.x, p.y)
-	barContainer:SetSize(db.profile.barx, db.profile.bary)
-	barContainer:Show()
-	
-	barContainer.text:SetWidth(max(db.profile.barx, 150))
-	barContainer.text:ClearAllPoints()
-	if db.profile.bardir == 1 then
-		barContainer.text:SetPoint("TOP", barContainer, "BOTTOM")
-	else
-		barContainer.text:SetPoint("BOTTOM", barContainer, "TOP")
-	end
-	if db.profile.Locked then
-		barContainer.text:Hide()
-	else
-		barContainer.text:Show()
-	end
-	for name, bar in pairs(bars) do
-		bar:Setup()
-	end
-	SWH:Reposition()
-end
-
-function SWH:ToggleLock()
-	db.profile.Locked = not db.profile.Locked
-	if db.profile.Locked then
-		for name, bar in pairs(bars) do
-			if bar.isTest then
-				bar:Hide()
-				bar.isTest = nil
-				bar.active = nil
-			end
-		end
-		SWH:Update()
-	else
-		barContainer:SetScript("OnUpdate", nil)
-		local bar = bars[UnitName("player")]
-		for _, name in pairs({
-			UnitName("player"),
-			(UnitName("raid1") or "raid1"),
-			(UnitName("raid2") or "raid2"),
-		}) do
-			local bar = bars[name]
-			bar.ic:SetTexture(GetSpellTexture(642))
-			local t = random(25)
-			bar.timet:SetText(t)
-			bar:SetValue(t)
-			local pct = t / db.profile.barMax
-			local inv = 1-pct
-			bar:SetStatusBarColor(
-				(co.r*pct) + (st.r * inv),
-				(co.g*pct) + (st.g * inv),
-				(co.b*pct) + (st.b * inv),
-				1)
-			bar.active = 1
-			bar.isTest = 1
-			bar.dmgt:SetText(format("%.1f", (random(60000)/1000)) .. "k")
-			bar:Show()
-		end
-		SWH:Reposition()
-		barContainer.text:Show()
-	end
-end
 
 function SWH:ZONE_CHANGED_NEW_AREA()
 	if debug or GetRealZoneText() == BZ["The Bastion of Twilight"] then
@@ -630,6 +633,10 @@ function SWH:ZONE_CHANGED_NEW_AREA()
 	else
 		SWH:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 		barContainer:SetScript("OnUpdate", nil)
+		for name, bar in pairs(bars) do
+			bar.active = nil
+		end
+		Reposition()
 	end
 end
 
@@ -642,8 +649,14 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 	else
 		_, event, _, _, _, _, destName, _, spellID, spellName, _, amount, _, _, _, _, absorbed = ...
 	end
-	if wrack[spellID] then
-		if UnitPlayerOrPetInRaid(destName) then
+	if event == "UNIT_DIED" then
+		local bar = rawget(bars, destName)
+		if bar then
+			bar.active = nil
+			Reposition()
+		end
+	elseif wrack[spellID] then
+		if debug or UnitPlayerOrPetInRaid(destName) then
 			local bar = bars[destName]
 			if event == "SPELL_AURA_APPLIED" then
 				bar.start = GetTime()
@@ -653,17 +666,17 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 				bar.expirationTime = expirationTime
 				bar.dmgt:SetText(0)
 				bar.active = 1
-				SWH:Reposition()
+				Reposition()
 			elseif event == "SPELL_AURA_REMOVED" then
 				bar.active = nil
 				bar.dmgt:SetText(0)
-				SWH:Reposition()
+				Reposition()
 			elseif event == "SPELL_PERIODIC_DAMAGE" then
 				bar.dmgt:SetText(format("%.1f", (amount + absorbed)/1000) .. "k")
 			end
 		end
 	elseif reductions[spellID] and db.profile.icenabled then
-		if UnitPlayerOrPetInRaid(destName) then
+		if debug or UnitPlayerOrPetInRaid(destName) then
 			local bar = bars[destName]
 			if event == "SPELL_AURA_APPLIED" then
 				local _, _, _, _, _, duration, expirationTime = UnitBuff(destName, spellName)
@@ -695,14 +708,14 @@ function SWH:SlashCommand(str)
 	if cmd == strlower(L["Options"]) or cmd == "options" then --allow unlocalized "options" too
 		LibStub("AceConfigDialog-3.0"):Open("Sinestra Wrack Helper Options")
 	else
-		SWH:ToggleLock()
+		ToggleLock()
 	end
 end
 SWH:RegisterChatCommand("swh", "SlashCommand")
 SWH:RegisterChatCommand("sinestrawrackhelper", "SlashCommand")
 SWH:RegisterChatCommand("sinestrawh", "SlashCommand")
 
-
+if not debug then return end
 --@debug@ 
 local t = {
 {"SPELL_CAST_SUCCESS",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000002AAA68D,"Caddar",0x512,89421,"Wrack",0x20},
@@ -772,12 +785,6 @@ local t = {
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000000B3F560,"Energy",0x512,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000000B3F560,"Energy",0x512,89435,"Wrack",0x20,2400,-1,32,600,0,0,nil,nil,nil},
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000002AAA68D,"Caddar",0x512,89435,"Wrack",0x20,"DEBUFF"},
-
-
-
-	{"SPELL_AURA_REMOVED",0x0500000003E17C32,"Cybeloras",0x10a48,0x0500000003E17C32,"Cybeloras",0x511,47585,"Dispersion",0x20,"BUFF"},
-	
-	
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000002AAA68D,"Caddar",0x512,89435,"Wrack",0x20,4050,-1,32,450,0,0,nil,nil,nil},
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E17C32,"Cybeloras",0x511,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E17C32,"Cybeloras",0x511,89435,"Wrack",0x20,2921,-1,32,1350,0,229,nil,nil,nil},
@@ -802,6 +809,12 @@ local t = {
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000000B3F560,"Energy",0x512,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000000B3F560,"Energy",0x512,89435,"Wrack",0x20,8100,-1,32,2025,0,0,nil,nil,nil},
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000002AAA68D,"Caddar",0x512,89435,"Wrack",0x20,"DEBUFF"},
+
+
+
+	{"SPELL_AURA_REMOVED",0x0500000003E17C32,"Cybeloras",0x10a48,0x0500000003E17C32,"Cybeloras",0x511,47585,"Dispersion",0x20,"BUFF"},
+	
+	
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000002AAA68D,"Caddar",0x512,89435,"Wrack",0x20,9112,-1,32,6075,0,0,nil,nil,nil},
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E17C32,"Cybeloras",0x511,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E17C32,"Cybeloras",0x511,89435,"Wrack",0x20,13669,-1,32,1519,0,0,nil,nil,nil},
@@ -839,14 +852,12 @@ local t = {
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000000B3F560,"Energy",0x512,89435,"Wrack",0x20,41006,-1,32,10252,0,0,nil,nil,nil},
 {"SPELL_AURA_REMOVED",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000002AAA68D,"Caddar",0x512,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_AURA_APPLIED",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E17C32,"Cybeloras",0x511,89435,"Wrack",0x20,"DEBUFF"},
-
 {"SPELL_AURA_APPLIED",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000004E0FCB4,"Lachis",0x514,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000000FB2285,"Midnightrun",0x514,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000000FB2285,"Midnightrun",0x514,89435,"Wrack",0x20,2400,-1,32,600,0,0,nil,nil,nil},
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000002F76406,"Nanohaxal",0x514,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000002F76406,"Nanohaxal",0x514,89435,"Wrack",0x20,2400,-1,32,600,0,0,nil,nil,nil},
 {"SPELL_AURA_REMOVED",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E14D5D,"Covetous",0x512,89435,"Wrack",0x20,"DEBUFF"},
-
 {"SPELL_AURA_APPLIED",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000002AAA68D,"Caddar",0x512,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_AURA_APPLIED",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000004055167,"Deathspeaker",0x512,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000000B3F560,"Energy",0x512,89435,"Wrack",0x20,"DEBUFF"},
@@ -855,6 +866,12 @@ local t = {
 {"SPELL_AURA_REMOVED",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000000FB2285,"Midnightrun",0x514,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E17C32,"Cybeloras",0x511,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_AURA_APPLIED",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E14D5D,"Covetous",0x512,89435,"Wrack",0x20,"DEBUFF"},
+
+
+	{"SPELL_AURA_APPLIED",0x0500000003E17C32,"Covetous",0x10a48,0x0500000003E17C32,"Covetous",0x511,47585,"Dispersion",0x20,"BUFF"},
+	
+	
+
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000004E0FCB4,"Lachis",0x514,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E17C32,"Cybeloras",0x511,89435,"Wrack",0x20,2700,-1,32,300,0,0,nil,nil,nil},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000004E0FCB4,"Lachis",0x514,89435,"Wrack",0x20,2538,-1,32,300,0,0,nil,nil,nil},
@@ -881,6 +898,10 @@ local t = {
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E14D5D,"Covetous",0x512,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E17C32,"Cybeloras",0x511,89435,"Wrack",0x20,4725,-1,32,2025,0,0,nil,nil,nil},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000003E14D5D,"Covetous",0x512,89435,"Wrack",0x20,2677,-1,32,1350,0,0,nil,nil,nil},
+
+	{"SPELL_AURA_REMOVED",0x0500000003E17C32,"Covetous",0x10a48,0x0500000003E17C32,"Covetous",0x511,47585,"Dispersion",0x20,"BUFF"},
+	
+	
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000004E0FCB4,"Lachis",0x514,89435,"Wrack",0x20,"DEBUFF"},
 {"SPELL_PERIODIC_DAMAGE",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000004E0FCB4,"Lachis",0x514,89435,"Wrack",0x20,5076,-1,32,1350,0,0,nil,nil,nil},
 {"SPELL_AURA_REFRESH",0xF130B09D00000F1A,"Sinestra",0x10a48,0x0500000002F76406,"Nanohaxal",0x514,89435,"Wrack",0x20,"DEBUFF"},
