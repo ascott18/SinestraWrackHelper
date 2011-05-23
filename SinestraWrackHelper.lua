@@ -8,7 +8,6 @@ local BZ = LBZ and LBZ:GetLookupTable() or setmetatable({}, {__index = function(
 local sort, ipairs, pairs, rawget, ceil, format, max, random, UnitClass, UnitName, UnitDebuff, UnitBuff, GetSpellTexture, GetRealZoneText, UnitPlayerOrPetInRaid, CreateFrame = 
 	  sort, ipairs, pairs, rawget, ceil, format, max, random, UnitClass, UnitName, UnitDebuff, UnitBuff, GetSpellTexture, GetRealZoneText, UnitPlayerOrPetInRaid, CreateFrame
 	  
-local debug = SWH_DEBUG
 --@debug@
  _G.SWH = SWH
 --@end-debug@
@@ -279,7 +278,6 @@ local function ToggleLock()
 		end
 		SWH:Update()
 	else
-		barContainer:SetScript("OnUpdate", nil)
 		local bar = bars[UnitName("player")]
 		for _, name in pairs({
 			UnitName("player"),
@@ -597,6 +595,7 @@ function barContainer:OnUpdate(elapsed)
 		end
 	end
 end
+barContainer:SetScript("OnUpdate", barContainer.OnUpdate)
 
 function SWH:OnInitialize()
 	SWH.db = LibStub("AceDB-3.0"):New("SinestraWrackHelperDB", Defaults)
@@ -623,12 +622,10 @@ function SWH:OnInitialize()
 end
 
 function SWH:ZONE_CHANGED_NEW_AREA()
-	if debug or (GetRealZoneText() == BZ["The Bastion of Twilight"]) then
+	if GetRealZoneText() == BZ["The Bastion of Twilight"] then
 		SWH:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-		barContainer:SetScript("OnUpdate", barContainer.OnUpdate)
 	else
 		SWH:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-		barContainer:SetScript("OnUpdate", nil)
 		for name, bar in pairs(bars) do
 			bar.active = nil
 		end
@@ -652,7 +649,7 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 			Reposition()
 		end
 	elseif wrack[spellID] then
-		if debug or UnitPlayerOrPetInRaid(destName) then
+		if UnitPlayerOrPetInRaid(destName) then
 			local bar = bars[destName]
 			if event == "SPELL_AURA_APPLIED" then
 				bar.start = GetTime()
@@ -662,9 +659,7 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 				bar.expirationTime = expirationTime
 				bar.dmgt:SetText(0)
 				bar.active = 1
-				barContainer:SetScript("OnUpdate", barContainer.OnUpdate)
 				Reposition()
-				print(bar.start, duration, expirationTime)
 			elseif event == "SPELL_AURA_REMOVED" then
 				bar.active = nil
 				bar.dmgt:SetText(0)
@@ -676,15 +671,11 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 			end
 		end
 	elseif reductions[spellID] and db.profile.icenabled then
-		if debug or UnitPlayerOrPetInRaid(destName) then
+		if UnitPlayerOrPetInRaid(destName) then
 			local bar = bars[destName]
 			if event == "SPELL_AURA_APPLIED" then
 				local _, _, _, _, _, duration, expirationTime = UnitBuff(destName, spellName)
 				local start = duration and expirationTime - duration
-				if debug and not start then 
-					start = GetTime()
-					duration = 10
-				end
 				if ( start and start > 0 and duration > 0) then
 					bar.cd:SetCooldown(start, duration)
 					bar.cd:Show()
