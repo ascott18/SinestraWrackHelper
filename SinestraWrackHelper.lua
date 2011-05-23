@@ -661,6 +661,7 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 				bar.expirationTime = expirationTime
 				bar.dmgt:SetText(0)
 				bar.active = 1
+				barContainer:SetScript("OnUpdate", barContainer.OnUpdate)
 				Reposition()
 			elseif event == "SPELL_AURA_REMOVED" then
 				bar.active = nil
