@@ -397,7 +397,6 @@ local fontTemplate = {
 	},
 }
 
-
 local OptionsTable = {
 	type = "group",
 	set = function(info, val)
@@ -577,9 +576,6 @@ local OptionsTable = {
 	},
 }
 
-
-
-
 function barContainer:OnUpdate(elapsed)
 	local time = GetTime()
 	for name, bar in pairs(bars) do
@@ -624,7 +620,6 @@ function SWH:OnInitialize()
 	SWH:RegisterEvent("ZONE_CHANGED_INDOORS", "ZONE_CHANGED_NEW_AREA")
 	SWH:Update()
 end
-
 
 function SWH:ZONE_CHANGED_NEW_AREA()
 	if debug or GetRealZoneText() == BZ["The Bastion of Twilight"] then
@@ -672,6 +667,7 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 				bar.dmgt:SetText(0)
 				Reposition()
 			elseif event == "SPELL_PERIODIC_DAMAGE" then
+				absorbed = absorbed or 0
 				bar.dmgt:SetText(format("%.1f", (amount + absorbed)/1000) .. "k")
 			end
 		end
@@ -705,7 +701,7 @@ end
 function SWH:SlashCommand(str)
 	local cmd = SWH:GetArgs(str)
 	cmd = strlower(cmd or "")
-	if cmd == strlower(L["Options"]) or cmd == "options" then --allow unlocalized "options" too
+	if cmd == strlower(L["Options"]) or cmd == strlower(L["Config"]) or cmd == "options" or cmd == "config" then --allow unlocalized "options" too
 		LibStub("AceConfigDialog-3.0"):Open("Sinestra Wrack Helper Options")
 	else
 		ToggleLock()
