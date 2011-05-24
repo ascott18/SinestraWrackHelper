@@ -2,7 +2,7 @@
 ## X-Compatible-With: 40200
 ## Title: Sinestra Wrack Helper
 
-## Version: 1.1
+## Version: 2.0
 ## Author: Cybeloras of Mal'Ganis
 ## Notes: Helps you keep track of when wrack needs to be dispelled off of raid members in the Sinestra Encounter.
 ## SavedVariables: SinestraWrackHelperDB
@@ -16,6 +16,7 @@
 ## X-LoadOn-ZONE_CHANGED_NEW_AREA: if not SWH_LBZ then local Z=LibStub and LibStub("LibBabble-Zone-3.0",true)SWH_LBZ=Z and Z:GetLookupTable()or setmetatable({},{__index=function(t,k)return k end})end if GetRealZoneText()==SWH_LBZ["The Bastion of Twilight"] then AddonLoader:LoadAddOn("SinestraWrackHelper")end
 ## X-LoadOn-ZONE_CHANGED_INDOORS: if not SWH_LBZ then local Z=LibStub and LibStub("LibBabble-Zone-3.0",true)SWH_LBZ=Z and Z:GetLookupTable()or setmetatable({},{__index=function(t,k)return k end})end if GetRealZoneText()==SWH_LBZ["The Bastion of Twilight"] then AddonLoader:LoadAddOn("SinestraWrackHelper")end
 ## X-LoadOn-ZONE_CHANGED: if not SWH_LBZ then local Z=LibStub and LibStub("LibBabble-Zone-3.0",true)SWH_LBZ=Z and Z:GetLookupTable()or setmetatable({},{__index=function(t,k)return k end})end if GetRealZoneText()==SWH_LBZ["The Bastion of Twilight"] then AddonLoader:LoadAddOn("SinestraWrackHelper")end
+## X-LoadOn-Execute: if not SWH_LBZ then local Z=LibStub and LibStub("LibBabble-Zone-3.0",true)SWH_LBZ=Z and Z:GetLookupTable()or setmetatable({},{__index=function(t,k)return k end})end if GetRealZoneText()==SWH_LBZ["The Bastion of Twilight"] then AddonLoader:LoadAddOn("SinestraWrackHelper")end
 ## X-LoadOn-InterfaceOptions: Sinestra W.H.
 
 Lib\LibStub\LibStub.lua
