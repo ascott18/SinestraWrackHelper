@@ -2,6 +2,7 @@
 
 
 L["LOCKED"] = "Locked"
+L["SHOWHEADERS"] = "Show Headers"
 L["ENABLED"] = "Enabled"
 L["SCALE"] = "Scale"
 L["LEFT"] = "Left"
@@ -37,12 +38,19 @@ L["BAR_MAX_DESC"] = "The time, in seconds, that the bar will be full at. Higher 
 
 L["FONT_HEADER_TIMEACTIVE"] = "Font - Time Active"
 L["FONT_HEADER_PLAYERNAME"] = "Font - Player Name"
-L["FONT_HEADER_LASTDAMAGE"] = "Font - Last Damage"
+L["FONT_HEADER_NEXTDAMAGE"] = "Font - Next Damage"
+L["FONT_HEADER_CURRHEALTH"] = "Font - Current Health"
+-- heh, i had to make the keys line up nicely... does that make me OCD?
+
 L["FONT_ENABLE"] = "Check to show this font string, uncheck to hide"
 L["FONT_TYPEFACE"] = "Font Face"
 L["FONT_SIZE"] = "Font Size"
 L["FONT_OUTLINE"] = "Font outline style"
 L["FONT_COLOR"] = "Font color"
+L["FONT_DGCOLOR"] = "Color - Tick >= Health"
+L["FONT_DGCOLOR_DESC"] = "The color of this font if the predicted damage of the next tick will exceed the player's health"
+L["FONT_HGCOLOR"] = "Color - Tick < Health"
+L["FONT_HGCOLOR_DESC"] = "The color of this font if the predicted damage of the next tick will exceed the player's health"
 L["MONOCHROME"] = "No Outline"
 L["OUTLINE"] = "Thin Outline"
 L["THICKOUTLINE"] = "Thick Outline"
@@ -51,6 +59,14 @@ L["ICON_HEADER"] = "Icon Options"
 L["ICON_DESC"] = "Configure the icon that is displayed to the side of the bar showing various buffs on the bar's unit that affect Wrack"
 L["ICON_ENABLE_DESC"] = "Check to show the icons to the side of bars that show various buffs that affect Wrack's damage, uncheck to hide"
 L["ICON_ANCHORSIDE"] = "Side of bar to anchor to"
+
+
+L["FRAMEHEADER_NAME"] = "Name"
+L["FRAMEHEADER_TIME"] = "Time"
+L["FRAMEHEADER_HEALTH"] = "Health"
+L["FRAMEHEADER_DAMAGE"] = "Next"
+
+
 
 
 

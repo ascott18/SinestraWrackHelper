@@ -33,7 +33,7 @@ local Defaults = {
 		co 			= 	{r=1, g=0, b=0, a=1},
 		bkg 		= 	{r=0, g=0, b=0, a=0.5},
 		barTexture	= 	"Blizzard",
-		icside		= 	-1,
+		icside		= 	-1, -- no, this isnt supposed to be "icsize"
 		icscale		=	1,
 		icx			=	0,
 		icy			=	0,
@@ -52,7 +52,9 @@ local Defaults = {
 				Outline = "OUTLINE",
 				x = 0,
 				y = 0,
-				Color = NORMAL_FONT_COLOR
+				Color = NORMAL_FONT_COLOR,
+				HGColor = NORMAL_FONT_COLOR,
+				DGColor = {r=1, g=0, b=0},
 			},
 			Name = {
 				x = 3,
@@ -61,7 +63,11 @@ local Defaults = {
 				x = -40,
 			},
 			Damage = {
-				x = -3,
+				x = 0,
+			},
+			Health = {
+				Enabled = false,
+				x = 0,
 			},
 		},
 	},
@@ -69,12 +75,20 @@ local Defaults = {
 local fontsettingnames = {
 	Name = L["FONT_HEADER_PLAYERNAME"],
 	Time = L["FONT_HEADER_TIMEACTIVE"],
-	Damage = L["FONT_HEADER_LASTDAMAGE"],
+	Damage = L["FONT_HEADER_NEXTDAMAGE"],
+	Health = L["FONT_HEADER_CURRHEALTH"],
 }
 local fontsettingorders = {
 	Name = 10,
 	Time = 11,
 	Damage = 12,
+	Health = 13,
+}
+local fontsettingcolors = {
+	Name = 1,
+	Time = 1,
+	Damage = 2,
+	Health = 2,
 }
 local fontTemplate = {
 	type = "group",
@@ -107,7 +121,7 @@ local fontTemplate = {
 			name = L["FONT_OUTLINE"],
 			type = "select",
 			values = {
-				MONOCHROME = L["MONOCHROME"],
+				[""] = L["MONOCHROME"],
 				OUTLINE = L["OUTLINE"],
 				THICKOUTLINE = L["THICKOUTLINE"],
 			},
@@ -160,7 +174,47 @@ local fontTemplate = {
 				return c.r, c.g, c.b
 			end,
 			hidden = function(info)
-				return info[#info-1] == "Name"
+				return fontsettingcolors[info[#info-1]] == 2
+			end,
+		},
+		DGColor = {
+			name = L["FONT_DGCOLOR"],
+			desc = L["FONT_DGCOLOR_DESC"],
+			type = "color",
+			order = 30,
+			set = function(info, r, g, b, a)
+				local c = db.profile.Fonts[info[#info-1]][info[#info]]
+				c.r = r
+				c.g = g
+				c.b = b
+				SWH:Update()
+			end,
+			get = function(info)
+				local c = db.profile.Fonts[info[#info-1]][info[#info]]
+				return c.r, c.g, c.b
+			end,
+			hidden = function(info)
+				return fontsettingcolors[info[#info-1]] == 1
+			end,
+		},
+		HGColor = {
+			name = L["FONT_HGCOLOR"],
+			desc = L["FONT_HGCOLOR_DESC"],
+			type = "color",
+			order = 30,
+			set = function(info, r, g, b, a)
+				local c = db.profile.Fonts[info[#info-1]][info[#info]]
+				c.r = r
+				c.g = g
+				c.b = b
+				SWH:Update()
+			end,
+			get = function(info)
+				local c = db.profile.Fonts[info[#info-1]][info[#info]]
+				return c.r, c.g, c.b
+			end,
+			hidden = function(info)
+				return fontsettingcolors[info[#info-1]] == 1
 			end,
 		}
 	},
@@ -182,7 +236,7 @@ local OptionsTable = {
 					name = L["LOCKED"],
 					desc = L["CONFIG_LOCK"],
 					type = "toggle",
-					order = 1,
+					order = 10,
 					set = function(info, val)
 						db.profile.Locked = not val -- intended since the value is switching in SWH:ToggleLock()
 						SWH:ToggleLock()
@@ -191,7 +245,7 @@ local OptionsTable = {
 				barx = {
 					name = L["BAR_WIDTH"],
 					type = "range",
-					order = 2,
+					order = 20,
 					width = "full",
 					softMin = 10,
 					softMax = 500,
@@ -201,7 +255,7 @@ local OptionsTable = {
 				bary = {
 					name = L["BAR_HEIGHT"],
 					type = "range",
-					order = 3,
+					order = 30,
 					width = "full",
 					softMin = 10,
 					softMax = 50,
@@ -212,46 +266,46 @@ local OptionsTable = {
 					name = L["BAR_SPACING"],
 					desc = L["BAR_SPACING_DESC"],
 					type = "range",
-					order = 4,
+					order = 40,
 					width = "full",
 					min = 0,
 					softMax = 20,
 					step = 0.1,
 					bigStep = 0.1,
 				},
-				bardir = {
-					name = L["BAR_DIRECTION"],
-					desc = L["BAR_DIRECTION_DESC"],
-					type = "select",
-					style = "radio",
-					order = 4,
-					values = {
-						[-1] = L["DOWN"],
-						[1] = L["UP"],
-					},
-				},
 				barMax = {
 					name = L["BAX_MAX"],
 					desc = L["BAR_MAX_DESC"],
 					type = "range",
-					order = 7,
+					order = 50,
 					width = "full",
 					min = 1,
 					softMax = 60,
 					step = 1,
 					bigStep = 1,
 				},
+				bardir = {
+					name = L["BAR_DIRECTION"],
+					desc = L["BAR_DIRECTION_DESC"],
+					type = "select",
+					style = "radio",
+					order = 60,
+					values = {
+						[-1] = L["DOWN"],
+						[1] = L["UP"],
+					},
+				},
 				barTexture = {
 					name = L["BAR_TEXTURE"],
 					type = "select",
-					order = 9,
+					order = 90,
 					dialogControl = 'LSM30_Statusbar',
 					values = LSM:HashTable("statusbar"),
 				},
 				color = {
 					type = "group",
 					name = L["BAR_COLORS"],
-					order = 20,
+					order = 200,
 					guiInline = true,
 					dialogInline = true,
 					set = function(info, r, g, b, a)
@@ -351,6 +405,7 @@ local OptionsTable = {
 		Name = fontTemplate,
 		Time = fontTemplate,
 		Damage = fontTemplate,
+		Health = fontTemplate,
 	},
 }
 
@@ -372,7 +427,12 @@ local reductions = {
 for k, v in pairs(reductions) do
 	reductions[k] = GetSpellInfo(k)
 end
-
+local Headers = {
+	Name = L["FRAMEHEADER_NAME"],
+	Time = L["FRAMEHEADER_TIME"],
+	Damage = L["FRAMEHEADER_DAMAGE"],
+	Health = L["FRAMEHEADER_HEALTH"],
+}
 
 -------------------- BAR CONTAINER --------------------
 SWH:SetMovable(1)
@@ -404,11 +464,12 @@ function SWH:OnUpdate(elapsed)
 	local time = GetTime()
 	for name, bar in pairs(bars) do
 		local start = bar.start
-		if bar.active and start and not bar.isTest then
-			bar.timet:SetText(ceil(time-start))
-			bar:SetValue(time-start)
+		local d = start and time-start
+		if bar.active and d and d < 60 and not bar.isTest then
+			bar.timet:SetText(ceil(d))
+			bar:SetValue(d)
 
-			local pct = (time - start) / db.profile.barMax
+			local pct = (d) / db.profile.barMax
 			local inv = 1-pct
 			bar:SetStatusBarColor(
 				(co.r*pct) + (st.r * inv),
@@ -462,6 +523,16 @@ local function UpdateBar(bar)
 	else
 		bar.timet:Hide()
 	end
+
+	f = db.profile.Fonts.Health
+	bar.health:SetPoint("RIGHT", bar, f.x, f.y)
+	bar.health:SetFont(LSM:Fetch("font", f.Name), f.Size, f.Outline)
+	bar.health:SetVertexColor(f.Color.r, f.Color.g, f.Color.b)
+	if f.Enabled then
+		bar.health:Show()
+	else
+		bar.health:Hide()
+	end
 	---- SETTINGS SET ----
 
 
@@ -487,7 +558,7 @@ local function UpdateBar(bar)
 	end
 
 	if db.profile.Locked then
-			bar:EnableMouse(0)
+		bar:EnableMouse(0)
 		bar.ic:SetTexture(bar.texpath)
 		if bar.icEnabled then
 			bar.ic:Show()
@@ -514,9 +585,9 @@ local function UpdateBar(bar)
 			local pct = bar.isTest / db.profile.barMax
 			local inv = 1-pct
 			bar:SetStatusBarColor(
-				(co.r*pct) + (st.r * inv),
-				(co.g*pct) + (st.g * inv),
-				(co.b*pct) + (st.b * inv),
+				(co.r*pct) + (st.r*inv),
+				(co.g*pct) + (st.g*inv),
+				(co.b*pct) + (st.b*inv),
 				1
 			)
 			bar:SetAlpha((co.a*pct) + (st.a * inv))
@@ -525,6 +596,18 @@ local function UpdateBar(bar)
 			bar:Hide()
 		end
 	end
+	bar:UpdateTextColors()
+end
+local function UpdateTextColors(bar)
+	
+	local h = bar.health.val or 1
+	local d = bar.dmgt.val or 0
+	
+	local Color = h > d and db.profile.Fonts.Health.HGColor or db.profile.Fonts.Health.DGColor
+	bar.health:SetVertexColor(Color.r, Color.g, Color.b)
+	
+	local Color = h > d and db.profile.Fonts.Damage.HGColor or db.profile.Fonts.Damage.DGColor
+	bar.dmgt:SetVertexColor(Color.r, Color.g, Color.b)
 end
 local function StartMoving()
 	if not db.profile.Locked then
@@ -549,6 +632,7 @@ local function CreateBar(name)
 	bar:SetScript("OnMouseUp", StopMoving)
 	bar:SetScript("OnShow", OnShow)
 	bar.UpdateBar = UpdateBar
+	bar.UpdateTextColors = UpdateTextColors
 	bar:RegisterForDrag("LeftButton")
 
 	bar.bkg = bar:CreateTexture(nil, "BACKGROUND")
@@ -574,6 +658,7 @@ local function CreateBar(name)
 	bar.cd:SetAllPoints(bar.ic)
 
 	bar.dmgt = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	bar.health = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	bar.timet = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	bar:UpdateBar()
 
@@ -594,9 +679,11 @@ function SWH:Update()
 	local rzt = GetRealZoneText()
 	if debug or rzt == BZ["The Bastion of Twilight"] or rzt == "The Bastion of Twilight" then
 		SWH:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+		SWH:RegisterEvent("UNIT_HEALTH")
 		SWH:SetScript("OnUpdate", SWH.OnUpdate)
 	else
 		SWH:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+		SWH:UnregisterEvent("UNIT_HEALTH")
 		SWH:SetScript("OnUpdate", nil)
 		for name, bar in pairs(bars) do
 			bar.active = nil
@@ -614,9 +701,9 @@ function SWH:Update()
 	SWH.text:SetWidth(max(db.profile.barx, 150))
 	SWH.text:ClearAllPoints()
 	if db.profile.bardir == 1 then
-		SWH.text:SetPoint("TOP", SWH, "BOTTOM")
+		SWH.text:SetPoint("TOP", SWH, "BOTTOM", 0, -15)
 	else
-		SWH.text:SetPoint("BOTTOM", SWH, "TOP")
+		SWH.text:SetPoint("BOTTOM", SWH, "TOP", 0, 15)
 	end
 	if db.profile.Locked then
 		SWH.text:Hide()
@@ -626,6 +713,31 @@ function SWH:Update()
 	for name, bar in pairs(bars) do
 		bar:UpdateBar()
 	end
+	
+	if not db.profile.Locked then
+		for k, v in pairs(Headers) do
+			SWH[k] = SWH[k] or SWH:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+			SWH[k]:SetText(v)
+			local ps = k == "Name" and "LEFT" or "RIGHT"
+			SWH[k]:ClearAllPoints()
+			if db.profile.bardir == 1 then
+				SWH[k]:SetPoint("TOP"..ps, SWH, "BOTTOM"..ps, db.profile.Fonts[k].x, 0)
+			else
+				SWH[k]:SetPoint("BOTTOM"..ps, SWH, "TOP"..ps, db.profile.Fonts[k].x, 0)
+			end
+			if db.profile.Fonts[k].Enabled then
+				SWH[k]:Show()
+			else
+				SWH[k]:Hide()
+			end
+		end
+		
+	elseif SWH.Name then
+		for k, v in pairs(Headers) do
+			SWH[k]:Hide()
+		end
+	end
+	
 	Reposition()
 end
 
@@ -636,12 +748,14 @@ function SWH:ToggleLock()
 			"TEST 1",
 			"TEST 2",
 			"TEST 3",
+			"TEST 4",
+			"TEST 5",
 		}) do
 			local bar = bars[name]
-			local t = random(db.profile.barMax)
+			local t = random(db.profile.barMax*100)/100
 			bar.isTest = t
 
-			bar.timet:SetText(t)
+			bar.timet:SetText(ceil(t))
 			bar:SetValue(t)
 			bar.start = GetTime() - t
 			local pct = t / db.profile.barMax
@@ -653,7 +767,16 @@ function SWH:ToggleLock()
 				1)
 			bar:SetAlpha((co.a*pct) + (st.a * inv))
 			bar.ic:SetTexture(GetSpellTexture(47585))
-			bar.dmgt:SetText(format("%.1f", (random(60000)/1000)) .. "k")
+			
+			local d = random(100000)
+			bar.dmgt:SetText(format("%.1f", d/1000) .. "k")
+			bar.dmgt.val = d
+			
+			local h = random(130000)
+			bar.health:SetText(format("%.1f", h/1000) .. "k")
+			bar.health.val = h
+			
+			bar:UpdateTextColors()
 
 			bar.ic:Show()
 			bar.cd:Show()
@@ -679,13 +802,14 @@ function SWH:OnInitialize()
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("Sinestra Wrack Helper Options", OptionsTable)
 	LibStub("AceConfigDialog-3.0"):SetDefaultSize("Sinestra Wrack Helper Options", 610, 500)
 	if not SWH.AddedToBlizz then
-		SWH.AddedToBlizz = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("Sinestra Wrack Helper Options", "Sinestra W.H.")
+		SWH.AddedToBlizz = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("Sinestra Wrack Helper Options", "Sinestra Wrack Helper")
 	else
 		LibStub("AceConfigRegistry-3.0"):NotifyChange("Sinestra Wrack Helper Options")
 	end
 
 	SWH:RegisterEvent("ZONE_CHANGED_NEW_AREA", "Update")
 	SWH:RegisterEvent("ZONE_CHANGED_INDOORS", "Update")
+	SWH:RegisterEvent("ZONE_CHANGED", "Update")
 
 	for k, v in pairs(INTERFACEOPTIONS_ADDONCATEGORIES) do
 		if v.addon == "SinestraWrackHelper" and not v.obj then -- this is the AddonLoader interface options stub
@@ -717,21 +841,25 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 		local bar = bars[destName]
 		if event == "SPELL_AURA_APPLIED" then
 			bar.start = GetTime()
-			bar.player = destName
-			local _, _, _, _, _, duration, expirationTime = UnitDebuff(destName, spellName)
-			bar.duration = duration
-			bar.expirationTime = expirationTime
-			bar.dmgt:SetText(0)
 			bar.active = 1
+			
+			bar.dmgt:SetText(0)
+			bar.dmgt.val = 0
+			
+			local h = UnitHealth(destName)
+			bar.health.val = h
+			bar.health:SetText(format("%.1f", h/1000) .. "k")
+			bar:UpdateTextColors()
+			
 			Reposition()
 		elseif event == "SPELL_AURA_REMOVED" then
 			bar.active = nil
-			bar.dmgt:SetText(0)
 			Reposition()
 		elseif event == "SPELL_PERIODIC_DAMAGE" then
-			amount = amount or 0
-			absorbed = absorbed or 0
-			bar.dmgt:SetText(format("%.1f", (amount + absorbed)/1000) .. "k")
+			local d = ((amount or 0) + (absorbed or 0))*1.5 -- dmg multiples by 1.5 each tick
+			bar.dmgt:SetText(format("%.1f", d/1000) .. "k")
+			bar.dmgt.val = d
+			bar:UpdateTextColors()
 		end
 	elseif reductions[spellID] and db.profile.icenabled then
 		local bar = bars[destName]
@@ -759,6 +887,16 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 			bar.texpath = nil
 			bar.icActive = nil
 		end
+	end
+end
+
+function SWH:UNIT_HEALTH(_, unit)
+	local destName = UnitName(unit)
+	local bar = rawget(bars, destName)
+	if bar and bar.active then
+		local h = UnitHealth(unit)
+		bar.health.val = h
+		bar.health:SetText(format("%.1f", h/1000) .. "k")
 	end
 end
 

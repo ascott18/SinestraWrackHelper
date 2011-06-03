@@ -17,7 +17,7 @@
 ## X-LoadOn-ZONE_CHANGED_INDOORS: if not SWH_LBZ then local Z=LibStub and LibStub("LibBabble-Zone-3.0",true)SWH_LBZ=Z and Z:GetLookupTable()or setmetatable({},{__index=function(t,k)return k end})end if GetRealZoneText()==SWH_LBZ["The Bastion of Twilight"] then AddonLoader:LoadAddOn("SinestraWrackHelper")end
 ## X-LoadOn-ZONE_CHANGED: if not SWH_LBZ then local Z=LibStub and LibStub("LibBabble-Zone-3.0",true)SWH_LBZ=Z and Z:GetLookupTable()or setmetatable({},{__index=function(t,k)return k end})end if GetRealZoneText()==SWH_LBZ["The Bastion of Twilight"] then AddonLoader:LoadAddOn("SinestraWrackHelper")end
 ## X-LoadOn-Execute: if not SWH_LBZ then local Z=LibStub and LibStub("LibBabble-Zone-3.0",true)SWH_LBZ=Z and Z:GetLookupTable()or setmetatable({},{__index=function(t,k)return k end})end if GetRealZoneText()==SWH_LBZ["The Bastion of Twilight"] then AddonLoader:LoadAddOn("SinestraWrackHelper")end
-## X-LoadOn-InterfaceOptions: Sinestra W.H.
+## X-LoadOn-InterfaceOptions: Sinestra Wrack Helper
 
 Lib\LibStub\LibStub.lua
 Lib\CallbackHandler-1.0\CallbackHandler-1.0.xml
