@@ -599,13 +599,13 @@ local function UpdateBar(bar)
 	bar:UpdateTextColors()
 end
 local function UpdateTextColors(bar)
-	
+
 	local h = bar.health.val or 1
 	local d = bar.dmgt.val or 0
-	
+
 	local Color = h > d and db.profile.Fonts.Health.HGColor or db.profile.Fonts.Health.DGColor
 	bar.health:SetVertexColor(Color.r, Color.g, Color.b)
-	
+
 	local Color = h > d and db.profile.Fonts.Damage.HGColor or db.profile.Fonts.Damage.DGColor
 	bar.dmgt:SetVertexColor(Color.r, Color.g, Color.b)
 end
@@ -713,7 +713,7 @@ function SWH:Update()
 	for name, bar in pairs(bars) do
 		bar:UpdateBar()
 	end
-	
+
 	if not db.profile.Locked then
 		for k, v in pairs(Headers) do
 			SWH[k] = SWH[k] or SWH:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -731,13 +731,13 @@ function SWH:Update()
 				SWH[k]:Hide()
 			end
 		end
-		
+
 	elseif SWH.Name then
 		for k, v in pairs(Headers) do
 			SWH[k]:Hide()
 		end
 	end
-	
+
 	Reposition()
 end
 
@@ -767,15 +767,15 @@ function SWH:ToggleLock()
 				1)
 			bar:SetAlpha((co.a*pct) + (st.a * inv))
 			bar.ic:SetTexture(GetSpellTexture(47585))
-			
+
 			local d = random(100000)
 			bar.dmgt:SetText(format("%.1f", d/1000) .. "k")
 			bar.dmgt.val = d
-			
+
 			local h = random(130000)
 			bar.health:SetText(format("%.1f", h/1000) .. "k")
 			bar.health.val = h
-			
+
 			bar:UpdateTextColors()
 
 			bar.ic:Show()
@@ -842,15 +842,15 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 		if event == "SPELL_AURA_APPLIED" then
 			bar.start = GetTime()
 			bar.active = 1
-			
+
 			bar.dmgt:SetText(0)
 			bar.dmgt.val = 0
-			
+
 			local h = UnitHealth(destName)
 			bar.health.val = h
 			bar.health:SetText(format("%.1f", h/1000) .. "k")
 			bar:UpdateTextColors()
-			
+
 			Reposition()
 		elseif event == "SPELL_AURA_REMOVED" then
 			bar.active = nil
