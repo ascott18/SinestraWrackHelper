@@ -418,11 +418,12 @@ local wrack = {
 	[92956] = 1,
 }
 local reductions = {
-    [47585] = 1, -- disperse
-    [48707] = 1, -- AMS
-    [50461] = 1, -- AMZ
-    [47788] = 1, -- guardian spirit
-    [33206] = 1, -- pain supp
+    [   17] = 1,	-- PW:S
+    [47585] = 1,	-- disperse
+    [48707] = 1,	-- AMS
+    [50461] = 1,	-- AMZ
+    [47788] = 1,	-- guardian spirit
+    [33206] = 1,	-- pain supp
 }
 for k, v in pairs(reductions) do
 	reductions[k] = GetSpellInfo(k)
@@ -433,7 +434,11 @@ local Headers = {
 	Damage = L["FRAMEHEADER_DAMAGE"],
 	Health = L["FRAMEHEADER_HEALTH"],
 }
-
+local dmg = setmetatable({},{ __index = function(t, k)
+	local d = 2000*1.5^k
+	t[k] = d
+	return d
+end})
 -------------------- BAR CONTAINER --------------------
 SWH:SetMovable(1)
 SWH.text = SWH:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -578,9 +583,11 @@ local function UpdateBar(bar)
 	else
 		bar:EnableMouse(1)
 		if bar.isTest then
+		
 			-- stupid hack because bars dont update their visual when their size changes unless their value is changed
 			bar:SetValue(0)
 			bar:SetValue(bar.isTest)
+			
 			-- update the color for when the max changes
 			local pct = bar.isTest / db.profile.barMax
 			local inv = 1-pct
@@ -591,7 +598,7 @@ local function UpdateBar(bar)
 				1
 			)
 			bar:SetAlpha((co.a*pct) + (st.a * inv))
-			bar.active = 1
+			bar.active = random(10)
 		else
 			bar:Hide()
 		end
@@ -768,11 +775,11 @@ function SWH:ToggleLock()
 			bar:SetAlpha((co.a*pct) + (st.a * inv))
 			bar.ic:SetTexture(GetSpellTexture(47585))
 
-			local d = random(100000)
+			local d = dmg[max(1, ceil(t/2)-1 )]
 			bar.dmgt:SetText(format("%.1f", d/1000) .. "k")
 			bar.dmgt.val = d
 
-			local h = random(130000)
+			local h = random(120000)
 			bar.health:SetText(format("%.1f", h/1000) .. "k")
 			bar.health.val = h
 
@@ -823,13 +830,13 @@ function SWH:OnInitialize()
 end
 
 function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
-	local event, destName, spellID, spellName, amount, absorbed
+	local event, destName, spellID, spellName, amount, absorbed, missAmt
 	if clientVersion >= 40200 then
-		_, event, _, _, _, _, _, _, destName, _, _, spellID, spellName, _, amount, _, _, _, _, absorbed = ...
+		_, event, _, _, _, _, _, _, destName, _, _, spellID, spellName, _, amount, missAmt, _, resist, _, absorbed = ...
 	elseif clientVersion >= 40100 then
-		_, event, _, _, _, _, _, destName, _, spellID, spellName, _, amount, _, _, _, _, absorbed = ...
+		_, event, _, _, _, _, _, destName, _, spellID, spellName, _, amount, missAmt, _, resist, _, absorbed = ...
 	else
-		_, event, _, _, _, _, destName, _, spellID, spellName, _, amount, _, _, _, _, absorbed = ...
+		_, event, _, _, _, _, destName, _, spellID, spellName, _, amount, missAmt, _, resist, _, absorbed = ...
 	end
 	if event == "UNIT_DIED" then
 		local bar = rawget(bars, destName)
@@ -841,22 +848,31 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 		local bar = bars[destName]
 		if event == "SPELL_AURA_APPLIED" then
 			bar.start = GetTime()
-			bar.active = 1
+			bar.active = 0
 
 			bar.dmgt:SetText(0)
 			bar.dmgt.val = 0
 
-			local h = UnitHealth(destName)
-			bar.health.val = h
-			bar.health:SetText(format("%.1f", h/1000) .. "k")
-			bar:UpdateTextColors()
+			SWH:UNIT_HEALTH(_, destName)
 
 			Reposition()
 		elseif event == "SPELL_AURA_REMOVED" then
 			bar.active = nil
 			Reposition()
-		elseif event == "SPELL_PERIODIC_DAMAGE" then
-			local d = ((amount or 0) + (absorbed or 0))*1.5 -- dmg multiples by 1.5 each tick
+	--	elseif (event == "SPELL_PERIODIC_DAMAGE" or event == "SPELL_PERIODIC_MISSED") and bar.active then
+		elseif event == "SPELL_PERIODIC_DAMAGE" and bar.active then
+			bar.active = bar.active + 1
+			
+			local d = ((amount or 0) + (absorbed or 0))*1.5
+			
+			bar.dmgt:SetText(format("%.1f", d/1000) .. "k")
+			bar.dmgt.val = d
+			bar:UpdateTextColors()
+		elseif event == "SPELL_PERIODIC_MISSED" and bar.active then
+			bar.active = bar.active + 1
+			
+			local d = missAmt*1.5
+			
 			bar.dmgt:SetText(format("%.1f", d/1000) .. "k")
 			bar.dmgt.val = d
 			bar:UpdateTextColors()
@@ -897,6 +913,7 @@ function SWH:UNIT_HEALTH(_, unit)
 		local h = UnitHealth(unit)
 		bar.health.val = h
 		bar.health:SetText(format("%.1f", h/1000) .. "k")
+		bar:UpdateTextColors()
 	end
 end
 
@@ -912,14 +929,6 @@ end
 SWH:RegisterChatCommand("swh", "SlashCommand")
 SWH:RegisterChatCommand("sinestrawrackhelper", "SlashCommand")
 SWH:RegisterChatCommand("sinestrawh", "SlashCommand")
-
-
-
-
-
-
-
-
 
 
 

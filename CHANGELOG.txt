@@ -1,3 +1,9 @@
+===v2.2.0===
+ * Text colors based on health should now properly update when a unit's health changes.
+ * Ticks of Wrack that are completely absorbed should now not cause ticks to be skipped.
+ * Estimation of next tick damage should be pretty close 98% of the time.
+ * Added Power Word: Shield to the list of spells that will be displayed as icons.
+
 ===v2.1.0===
  * Added text to display a player's current health.
  * The text displaying the damage of Wrack now shows how much the NEXT tick will do.
