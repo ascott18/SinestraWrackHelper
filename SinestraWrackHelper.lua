@@ -465,25 +465,31 @@ local function Reposition()
 	end
 end
 
-function SWH:OnUpdate(elapsed)
+function SWH:OnUpdate()
 	local time = GetTime()
 	for name, bar in pairs(bars) do
 		local start = bar.start
 		local d = start and time-start
-		if bar.active and d and d < 60 and not bar.isTest then
-			bar.timet:SetText(ceil(d))
-			bar:SetValue(d)
+		if not bar.isTest and d then
+			if d > 60 then -- last resort fix for bars that stick around
+				bar.active = nil
+				bar:Hide()
+				Reposition()
+			elseif bar.active then
+				bar.timet:SetText(ceil(d))
+				bar:SetValue(d)
 
-			local pct = (d) / db.profile.barMax
-			local inv = 1-pct
-			bar:SetStatusBarColor(
-				(co.r*pct) + (st.r * inv),
-				(co.g*pct) + (st.g * inv),
-				(co.b*pct) + (st.b * inv),
-				1
-			)
-			bar:SetAlpha((co.a*pct) + (st.a * inv))
+				local pct = (d) / db.profile.barMax
+				local inv = 1-pct
+				bar:SetStatusBarColor(
+					(co.r*pct) + (st.r * inv),
+					(co.g*pct) + (st.g * inv),
+					(co.b*pct) + (st.b * inv),
+					1
+				)
+				bar:SetAlpha((co.a*pct) + (st.a * inv))
 
+			end
 		end
 	end
 end
@@ -759,7 +765,7 @@ function SWH:ToggleLock()
 			"TEST 5",
 		}) do
 			local bar = bars[name]
-			local t = random(db.profile.barMax*100)/100
+			local t = random(24)
 			bar.isTest = t
 
 			bar.timet:SetText(ceil(t))
@@ -850,8 +856,8 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 			bar.start = GetTime()
 			bar.active = 0
 
-			bar.dmgt:SetText(0)
-			bar.dmgt.val = 0
+			bar.dmgt:SetText("2.0k")
+			bar.dmgt.val = 2000
 
 			SWH:UNIT_HEALTH(_, destName)
 
@@ -859,7 +865,6 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 		elseif event == "SPELL_AURA_REMOVED" then
 			bar.active = nil
 			Reposition()
-	--	elseif (event == "SPELL_PERIODIC_DAMAGE" or event == "SPELL_PERIODIC_MISSED") and bar.active then
 		elseif event == "SPELL_PERIODIC_DAMAGE" and bar.active then
 			bar.active = bar.active + 1
 			
@@ -886,7 +891,7 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 				start = GetTime()
 				duration = random(10)
 			end
-			if ( start and start > 0 and duration > 0) then
+			if start and start > 0 and duration > 0 then
 				bar.cd:SetCooldown(start, duration)
 				bar.cd:Show()
 			else
@@ -894,7 +899,7 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 			end
 			local tex = GetSpellTexture(spellID)
 			bar.texpath = tex
-			bar.ic:SetTexture(GetSpellTexture(spellID))
+			bar.ic:SetTexture(tex)
 			bar.ic:Show()
 			bar.icActive = 1
 		elseif event == "SPELL_AURA_REMOVED" then
