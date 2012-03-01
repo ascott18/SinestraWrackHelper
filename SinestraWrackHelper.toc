@@ -2,7 +2,7 @@
 # X-Compatible-With: 40200
 ## Title: Sinestra Wrack Helper
 
-## Version: 2.3.0
+## Version: 2.3.1
 ## Author: Cybeloras of Mal'Ganis
 ## Notes: Helps you keep track of when wrack needs to be dispelled off of raid members in the Sinestra Encounter.
 ## SavedVariables: SinestraWrackHelperDB

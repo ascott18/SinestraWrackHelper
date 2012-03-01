@@ -876,7 +876,7 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 		elseif event == "SPELL_PERIODIC_MISSED" and bar.active then
 			bar.active = bar.active + 1
 			
-			local d = missAmt*1.5
+			local d = (missAmt or 0)*1.5
 			
 			bar.dmgt:SetText(format("%.1f", d/1000) .. "k")
 			bar.dmgt.val = d
