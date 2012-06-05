@@ -877,8 +877,11 @@ function SWH:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
 			bar.active = bar.active + 1
 			
 			local d = (missAmt or 0)*1.5
-			
-			bar.dmgt:SetText(format("%.1f", d/1000) .. "k")
+			if not missAmt then
+				bar.dmgt:SetText("ERROR")
+			else
+				bar.dmgt:SetText(format("%.1f", d/1000) .. "k")
+			end
 			bar.dmgt.val = d
 			bar:UpdateTextColors()
 		end
