@@ -10,7 +10,7 @@
  * Texts for health and next tick damage can be colored if the next tick exceeds the player's health.
  * And other minor changes.
 
- ===v2.0.1===
+===v2.0.1===
  * Removed debug prints
 
 ===v2.0.0===
